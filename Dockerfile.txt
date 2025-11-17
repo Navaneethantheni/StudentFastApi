@@ -1,0 +1,29 @@
+# Stage 1: Build the application
+# Use the SDK image for building
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /src
+
+# Copy the project file and restore dependencies (for build caching optimization)
+COPY ["StudentFastApi/StudentFastApi.csproj", "StudentFastApi/"]
+RUN dotnet restore "StudentFastApi/StudentFastApi.csproj"
+
+# Copy the rest of the source code
+COPY . .
+WORKDIR "/src/StudentFastApi"
+
+# Publish the application
+RUN dotnet publish "StudentFastApi.csproj" -c Release -o /app/publish
+
+# Stage 2: Create the final runtime image
+# Use the smaller ASP.NET runtime image for the final deployment
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
+WORKDIR /app
+
+# The default port for ASP.NET Core in containers is 8080. Render handles mapping this.
+EXPOSE 8080 
+
+# Copy published application output from the 'publish' stage
+COPY --from=build /app/publish .
+
+# Set the entry point to run the published application
+ENTRYPOINT ["dotnet", "StudentFastApi.dll"]
